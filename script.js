@@ -1,216 +1,234 @@
 /**
- * IRON GYM - GESTÃO ADMINISTRATIVA
- * SCRIPT HOMOLOGADO COM A API (Vercel)
+ * IRON GYM - SISTEMA ADMINISTRATIVO
+ * Versão: CPF Limpo no Banco / Mascarado na UI
  */
 
-const API_BASE_URL = 'https://sistema-academia-backend-hx4f.vercel.app'; 
+const CONFIG = {
+    API_URL: 'https://sistema-academia-backend-hx4f.vercel.app',
+    TOKEN_KEY: 'iron_jwt_token',
+    AUTH_KEY: 'iron_auth'
+};
 
-// Referências do DOM
-const loginSection = document.getElementById('login-section');
-const adminSection = document.getElementById('admin-panel');
-const loginForm = document.getElementById('login-form');
-const tabelaAlunos = document.getElementById('lista-usuarios');
-const modalAluno = document.getElementById('modal-aluno');
-const formAluno = document.getElementById('form-aluno-modal');
+const STATE = {
+    activeStudentCpf: null, // Sempre armazenará o CPF sem pontos/traços
+    isEditing: () => !!STATE.activeStudentCpf
+};
 
-let alunoEmEdicaoId = null;
-
-/**
- * Retorna os headers necessários para rotas protegidas
- */
-function getAuthHeaders() {
-    const token = sessionStorage.getItem('iron_jwt_token');
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-    };
-}
-
-// --- 1. AUTENTICAÇÃO (LOGIN) ---
-loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = loginForm.querySelector('button');
-    const originalText = btn.innerText;
-
-    // A API espera 'usuario' e 'senha' conforme seu código anterior
-    const payload = {
-        usuario: document.getElementById('user').value.trim(),
-        senha: document.getElementById('pass').value.trim()
-    };
-
-    try {
-        btn.innerText = "AUTENTICANDO...";
-        const res = await fetch(`${API_BASE_URL}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (res.ok) {
-            const data = await res.json();
-            // Salva o token e o estado de autenticação
-            sessionStorage.setItem('iron_jwt_token', data.token);
-            sessionStorage.setItem('iron_auth', 'true');
-            abrirPainel();
-        } else {
-            alert("Falha no login: Verifique suas credenciais.");
-        }
-    } catch (err) {
-        console.error("Erro de login:", err);
-        alert("Erro ao conectar com o servidor.");
-    } finally {
-        btn.innerText = originalText;
+const DOM = {
+    loginSection: document.getElementById('login-section'),
+    adminSection: document.getElementById('admin-panel'),
+    loginForm: document.getElementById('login-form'),
+    studentTable: document.getElementById('lista-usuarios'),
+    studentModal: document.getElementById('modal-aluno'),
+    studentForm: document.getElementById('form-aluno-modal'),
+    modalTitle: document.getElementById('modal-titulo'),
+    inputs: {
+        nome: document.getElementById('nome-modal'),
+        cpf: document.getElementById('cpf-modal'),
+        status: document.getElementById('plano-modal')
     }
-});
+};
 
-// --- 2. LISTAGEM (READ) ---
-async function carregarAlunos() {
-    tabelaAlunos.innerHTML = '<tr><td colspan="4" class="p-5 text-center text-zinc-500 italic">Atualizando lista...</td></tr>';
+// --- UTILITÁRIOS ---
+const formatters = {
+    // Transforma números em 000.000.000-00
+    toCpfMask(value) {
+        return value.replace(/\D/g, "")
+            .replace(/(\d{3})(\d)/, "$1.$2")
+            .replace(/(\d{3})(\d)/, "$1.$2")
+            .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    },
+    // Remove tudo que não for número (limpa para o banco)
+    stripNonDigits(value) {
+        return value.replace(/\D/g, "");
+    }
+};
 
-    try {
-        const res = await fetch(`${API_BASE_URL}/alunos`, { 
-            headers: getAuthHeaders() 
+// --- SERVIÇOS DE COMUNICAÇÃO ---
+const apiService = {
+    async request(path, { method = 'GET', body = null } = {}) {
+        const token = sessionStorage.getItem(CONFIG.TOKEN_KEY);
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const response = await fetch(`${CONFIG.API_URL}${path}`, {
+            method,
+            headers,
+            body: body ? JSON.stringify(body) : null
         });
 
-        if (!res.ok) throw new Error("Erro na requisição");
+        if (response.status === 401) authService.logout();
 
-        const alunos = await res.json();
-        tabelaAlunos.innerHTML = '';
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `Erro: ${response.status}`);
 
-        if (alunos.length === 0) {
-            tabelaAlunos.innerHTML = '<tr><td colspan="4" class="p-5 text-center text-zinc-500">Nenhum aluno cadastrado.</td></tr>';
-            return;
+        return data;
+    }
+};
+
+// --- SERVIÇOS DE AUTENTICAÇÃO ---
+const authService = {
+    async login(usuario, senha) {
+        try {
+            const data = await apiService.request('/login', {
+                method: 'POST',
+                body: { usuario, senha }
+            });
+
+            if (data.token) {
+                sessionStorage.setItem(CONFIG.TOKEN_KEY, data.token);
+                sessionStorage.setItem(CONFIG.AUTH_KEY, 'true');
+                uiController.initDashboard();
+            }
+        } catch (err) {
+            alert(err.message);
+        }
+    },
+
+    logout() {
+        sessionStorage.clear();
+        location.reload();
+    }
+};
+
+// --- GESTÃO DE ALUNOS ---
+const studentService = {
+    async fetchAll() {
+        uiController.toggleLoader(true);
+        try {
+            const list = await apiService.request('/alunos');
+            uiController.renderStudentTable(list);
+        } catch (err) {
+            uiController.renderError();
+        }
+    },
+
+    async persist(studentData) {
+        // Garantimos que o CPF no corpo da requisição está limpo
+        const rawCpf = formatters.stripNonDigits(studentData.cpf);
+        const payload = { ...studentData, cpf: rawCpf };
+
+        // A URL de edição também usa o CPF limpo definido no STATE
+        const path = STATE.isEditing() ? `/alunos/${STATE.activeStudentCpf}` : '/alunos';
+        const method = STATE.isEditing() ? 'PUT' : 'POST';
+
+        try {
+            await apiService.request(path, { method, body: payload });
+            uiController.closeModal();
+            this.fetchAll();
+        } catch (err) {
+            alert(err.message);
+        }
+    },
+
+    async delete(cpf) {
+        const rawCpf = formatters.stripNonDigits(cpf);
+        if (!confirm(`Deseja excluir permanentemente o aluno de CPF: ${formatters.toCpfMask(rawCpf)}?`)) return;
+
+        try {
+            await apiService.request(`/alunos/${rawCpf}`, { method: 'DELETE' });
+            this.fetchAll();
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+};
+
+// --- CONTROLADOR DE INTERFACE ---
+const uiController = {
+    initDashboard() {
+        DOM.loginSection.classList.add('hidden');
+        DOM.adminSection.classList.remove('hidden');
+        studentService.fetchAll();
+    },
+
+    toggleLoader(show) {
+        if (show) DOM.studentTable.innerHTML = '<tr><td colspan="4" class="p-5 text-center text-zinc-500 italic animate-pulse">Sincronizando dados...</td></tr>';
+    },
+
+    renderError() {
+        DOM.studentTable.innerHTML = '<tr><td colspan="4" class="p-5 text-center text-red-500 font-bold">Falha na conexão com a API.</td></tr>';
+    },
+
+    openModal(student = null) {
+        // STATE armazena o CPF limpo
+        STATE.activeStudentCpf = student ? formatters.stripNonDigits(student.cpf) : null;
+        DOM.studentForm.reset();
+
+        DOM.modalTitle.innerText = STATE.isEditing() ? "Editar Aluno" : "Novo Cadastro";
+        DOM.inputs.cpf.disabled = STATE.isEditing();
+
+        if (student) {
+            DOM.inputs.nome.value = student.nome;
+            // No input, mostramos formatado
+            DOM.inputs.cpf.value = formatters.toCpfMask(student.cpf);
+            DOM.inputs.status.value = student.status.toString();
         }
 
-        alunos.forEach(aluno => {
-            // MongoDB usa _id. Garantimos a captura correta para as funções de Editar/Excluir
-            const id = aluno._id || aluno.id;
-            
-            tabelaAlunos.innerHTML += `
+        DOM.studentModal.classList.add('modal-active');
+    },
+
+    closeModal() {
+        DOM.studentModal.classList.remove('modal-active');
+    },
+
+    renderStudentTable(list) {
+        DOM.studentTable.innerHTML = list.length ? "" : '<tr><td colspan="4" class="p-5 text-center">Nenhum registro.</td></tr>';
+
+        list.forEach(item => {
+            const statusStyle = item.status ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500';
+
+            // Limpamos o CPF para passar como argumento nas funções
+            const rawCpf = formatters.stripNonDigits(item.cpf);
+
+            DOM.studentTable.innerHTML += `
                 <tr class="border-b border-zinc-800/50 hover:bg-white/5 transition-all">
-                    <td class="p-5 font-bold text-white">${aluno.nome}</td>
-                    <td class="p-5 font-mono text-zinc-400">${aluno.cpf}</td>
+                    <td class="p-5 font-bold text-white">${item.nome}</td>
+                    <td class="p-5 font-mono text-zinc-400">${formatters.toCpfMask(item.cpf)}</td>
                     <td class="p-5">
-                        <span class="bg-[#c5a059]/10 text-[#c5a059] text-[10px] px-2 py-1 rounded uppercase font-bold">${aluno.plano}</span>
+                        <span class="${statusStyle} text-[10px] px-2 py-1 rounded uppercase font-bold">
+                            ${item.status ? 'Ativo' : 'Inativo'}
+                        </span>
                     </td>
                     <td class="p-5 text-center">
-                        <button onclick="editarAluno('${id}', '${aluno.nome}', '${aluno.cpf}', '${aluno.plano}')" 
+                        <button onclick="uiController.handleEdit('${rawCpf}', '${item.nome}', ${item.status})" 
                                 class="text-blue-400 font-bold text-xs mr-4 hover:underline cursor-pointer">EDITAR</button>
-                        <button onclick="deletarAluno('${id}')" 
+                        <button onclick="window.deletarAluno('${rawCpf}')" 
                                 class="text-red-500 font-bold text-xs hover:underline cursor-pointer">EXCLUIR</button>
                     </td>
-                </tr>
-            `;
+                </tr>`;
         });
-    } catch (err) {
-        console.error("Erro ao listar:", err);
-        tabelaAlunos.innerHTML = '<tr><td colspan="4" class="p-5 text-center text-red-500">Erro ao carregar dados da API.</td></tr>';
-    }
-}
+    },
 
-// --- 3. SALVAR (CREATE & UPDATE) ---
-formAluno.addEventListener('submit', async (e) => {
+    handleEdit(cpf, nome, status) {
+        this.openModal({ cpf, nome, status });
+    }
+};
+
+// --- EXPOSIÇÃO GLOBAL E EVENTOS ---
+window.logout = () => authService.logout();
+window.deletarAluno = (cpf) => studentService.delete(cpf);
+window.fecharModal = () => uiController.closeModal();
+window.abrirModalCadastro = () => uiController.openModal();
+
+DOM.loginForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const btn = formAluno.querySelector('button[type="submit"]');
-    const originalText = btn.innerText;
-
-    const payload = {
-        nome: document.getElementById('nome-modal').value.trim(),
-        cpf: document.getElementById('cpf-modal').value.trim(),
-        plano: document.getElementById('plano-modal').value
-    };
-
-    // Define se vai para /alunos (POST) ou /alunos/ID (PUT)
-    const url = alunoEmEdicaoId ? `${API_BASE_URL}/alunos/${alunoEmEdicaoId}` : `${API_BASE_URL}/alunos`;
-    const metodo = alunoEmEdicaoId ? 'PUT' : 'POST';
-
-    try {
-        btn.innerText = "PROCESSANDO...";
-        const res = await fetch(url, {
-            method: metodo,
-            headers: getAuthHeaders(),
-            body: JSON.stringify(payload)
-        });
-
-        if (res.ok) {
-            fecharModal();
-            carregarAlunos(); // Atualiza a tabela
-        } else {
-            const errorData = await res.json();
-            alert("Erro: " + (errorData.message || "Não foi possível realizar a operação."));
-        }
-    } catch (err) {
-        console.error("Erro ao salvar:", err);
-        alert("Erro de conexão com a API.");
-    } finally {
-        btn.innerText = originalText;
-    }
+    authService.login(document.getElementById('user').value, document.getElementById('pass').value);
 });
 
-// --- 4. EXCLUIR (DELETE) ---
-window.deletarAluno = async (id) => {
-    if (!confirm("Deseja realmente remover este registro permanentemente?")) return;
+DOM.studentForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    studentService.persist({
+        nome: DOM.inputs.nome.value.trim(),
+        cpf: DOM.inputs.cpf.value.trim(),
+        status: DOM.inputs.status.value === 'true'
+    });
+});
 
-    try {
-        const res = await fetch(`${API_BASE_URL}/alunos/${id}`, {
-            method: 'DELETE',
-            headers: getAuthHeaders()
-        });
+DOM.inputs.cpf.addEventListener('input', (e) => {
+    e.target.value = formatters.toCpfMask(e.target.value);
+});
 
-        if (res.ok) {
-            carregarAlunos();
-        } else {
-            alert("Erro ao excluir aluno no servidor.");
-        }
-    } catch (err) {
-        console.error("Erro ao deletar:", err);
-        alert("Erro de conexão.");
-    }
-};
-
-// --- CONTROLE DE INTERFACE ---
-
-window.abrirModalCadastro = () => {
-    alunoEmEdicaoId = null; // Reseta o ID de edição
-    formAluno.reset();
-    document.getElementById('modal-titulo').innerText = "Novo Cadastro";
-    
-    modalAluno.classList.remove('hidden');
-    setTimeout(() => modalAluno.classList.add('modal-active'), 10);
-};
-
-window.editarAluno = (id, nome, cpf, plano) => {
-    alunoEmEdicaoId = id; // Define qual ID será editado
-    document.getElementById('modal-titulo').innerText = "Editar Aluno";
-    
-    // Preenche os campos do modal
-    document.getElementById('nome-modal').value = nome;
-    document.getElementById('cpf-modal').value = cpf;
-    document.getElementById('plano-modal').value = plano;
-    
-    modalAluno.classList.remove('hidden');
-    setTimeout(() => modalAluno.classList.add('modal-active'), 10);
-};
-
-window.fecharModal = () => {
-    modalAluno.classList.remove('modal-active');
-    setTimeout(() => modalAluno.classList.add('hidden'), 300);
-};
-
-window.logout = () => {
-    sessionStorage.clear();
-    location.reload();
-};
-
-function abrirPainel() {
-    loginSection.classList.add('hidden');
-    adminSection.classList.remove('hidden');
-    carregarAlunos();
-}
-
-// Verifica se já existe uma sessão ativa ao carregar a página
 document.addEventListener('DOMContentLoaded', () => {
-    if (sessionStorage.getItem('iron_auth') && sessionStorage.getItem('iron_jwt_token')) {
-        abrirPainel();
-    }
+    if (sessionStorage.getItem(CONFIG.AUTH_KEY)) uiController.initDashboard();
 });
