@@ -16,7 +16,19 @@
         input, select { color-scheme: dark; }
         
         /* Animação suave para o modal */
-        .modal-active { display: flex !important; }
+        /* BASE DO MODAL: Transição, começa transparente e um pouco menor */
+        #modal-aluno {
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+            opacity: 0;
+            transform: scale(0.95);
+            /* Importante: A classe 'hidden' do Tailwind controla o 'display: none'. */
+            /* A animação só entra em ação quando 'hidden' é removido e 'modal-active' é adicionado. */
+        }
+        /* ESTADO ATIVO DO MODAL: Totalmente visível e em tamanho normal */
+        .modal-active {
+            opacity: 1;
+            transform: scale(1);
+        }
     </style>
 </head>
 <body class="bg-[#0f0f10] text-[#e5e5e5] min-h-screen font-sans">
@@ -81,13 +93,18 @@
                             </tr>
                         </thead>
                         <tbody id="lista-usuarios" class="divide-y divide-zinc-800/50">
-                            </tbody>
+                            <!-- Esta mensagem será substituída pelo JS -->
+                            <tr>
+                                <td colspan="4" class="p-5 text-center text-zinc-500">Carregando alunos...</td>
+                            </tr>
+                        </tbody>
                     </table>
                 </div>
             </div>
         </main>
     </section>
 
+    <!-- O 'hidden' abaixo deve permanecer para o estado inicial do modal -->
     <div id="modal-aluno" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
         <div class="glass-card w-full max-w-lg p-10 rounded-3xl shadow-2xl">
             <div class="flex justify-between items-start mb-8">
