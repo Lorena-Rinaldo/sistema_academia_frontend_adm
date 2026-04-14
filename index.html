@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,159 +12,144 @@
             --gym-gold: #c5a059;
             --gym-white: #e5e5e5;
         }
-        .gold-gradient { background: linear-gradient(135deg, #c5a059 0%, #947a44 100%); }
-        .glass-card { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(197, 160, 89, 0.2); }
-        input, select { color-scheme: dark; }
-        
-        /* Animação suave para o modal */
-        /* BASE DO MODAL: Transição, começa transparente e um pouco menor */
-        #modal-aluno {
-            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
-            opacity: 0;
-            transform: scale(0.95);
-            /* Importante: A classe 'hidden' do Tailwind controla o 'display: none'. */
-            /* A animação só entra em ação quando 'hidden' é removido e 'modal-active' é adicionado. */
+
+        .gold-gradient {
+            background: linear-gradient(135deg, #c5a059 0%, #947a44 100%);
         }
-        /* ESTADO ATIVO DO MODAL: Totalmente visível e em tamanho normal */
-        .modal-active {
+
+        .glass-card {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(197, 160, 89, 0.2);
+        }
+
+        input,
+        select {
+            color-scheme: dark;
+        }
+
+        /* Sistema de Modal com Animação */
+        #modal-aluno {
+            transition: all 0.3s ease-in-out;
+            opacity: 0;
+            visibility: hidden;
+            /* Em vez de hidden do tailwind */
+            pointer-events: none;
+        }
+
+        #modal-aluno.modal-active {
             opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+
+        #modal-aluno .glass-card {
+            transform: scale(0.95);
+            transition: transform 0.3s ease-in-out;
+        }
+
+        #modal-aluno.modal-active .glass-card {
             transform: scale(1);
         }
     </style>
 </head>
+
 <body class="bg-[#0f0f10] text-[#e5e5e5] min-h-screen font-sans">
 
+    <!-- LOGIN -->
     <section id="login-section" class="min-h-screen flex items-center justify-center p-6">
         <div class="glass-card w-full max-w-md p-10 rounded-3xl shadow-2xl">
             <div class="text-center mb-8">
-                <h1 class="text-4xl font-black tracking-tighter text-[#c5a059] uppercase italic">IRON <span class="text-white">ADM</span></h1>
-                <p class="text-[10px] tracking-[0.3em] text-zinc-500 uppercase mt-2 font-bold">Acesso Restrito ao Sistema</p>
+                <h1 class="text-4xl font-black tracking-tighter text-[#c5a059] uppercase italic">IRON <span
+                        class="text-white">ADM</span></h1>
+                <p class="text-[10px] tracking-[0.3em] text-zinc-500 uppercase mt-2 font-bold">Acesso Restrito ao
+                    Sistema</p>
             </div>
-            
             <form id="login-form" class="space-y-6">
                 <div>
-                    <label for="user" class="block text-[10px] uppercase tracking-widest text-[#c5a059] mb-2 font-bold">Utilizador</label>
-                    <input type="text" id="user" name="user" required autocomplete="username"
-                        class="w-full bg-black/40 border border-zinc-800 rounded-xl p-4 focus:border-[#c5a059] outline-none transition-all"
-                        placeholder="Digite o utilizador">
+                    <label
+                        class="block text-[10px] uppercase tracking-widest text-[#c5a059] mb-2 font-bold">Utilizador</label>
+                    <input type="text" id="user" required
+                        class="w-full bg-black/40 border border-zinc-800 rounded-xl p-4 outline-none focus:border-[#c5a059]">
                 </div>
                 <div>
-                    <label for="pass" class="block text-[10px] uppercase tracking-widest text-[#c5a059] mb-2 font-bold">Palavra-passe</label>
-                    <input type="password" id="pass" name="pass" required autocomplete="current-password"
-                        class="w-full bg-black/40 border border-zinc-800 rounded-xl p-4 focus:border-[#c5a059] outline-none transition-all"
-                        placeholder="••••••••">
+                    <label
+                        class="block text-[10px] uppercase tracking-widest text-[#c5a059] mb-2 font-bold">Palavra-passe</label>
+                    <input type="password" id="pass" required
+                        class="w-full bg-black/40 border border-zinc-800 rounded-xl p-4 outline-none focus:border-[#c5a059]">
                 </div>
-                <button type="submit" class="w-full gold-gradient text-black font-black uppercase py-4 rounded-xl hover:opacity-90 active:scale-95 transition-all cursor-pointer">
-                    Entrar no Painel
-                </button>
+                <button type="submit"
+                    class="w-full gold-gradient text-black font-black uppercase py-4 rounded-xl hover:opacity-90 cursor-pointer">Entrar
+                    no Painel</button>
             </form>
         </div>
     </section>
 
+    <!-- PAINEL ADMIN -->
     <section id="admin-panel" class="hidden min-h-screen flex flex-col">
-        <header class="w-full flex justify-between items-center px-10 py-6 border-b border-[#c5a059]/20 bg-black/40 backdrop-blur-md sticky top-0 z-40">
-            <div>
-                <h1 class="text-3xl font-black tracking-tighter text-[#c5a059] uppercase italic">IRON <span class="text-white">GYM</span></h1>
-            </div>
-            <div class="flex items-center gap-6">
-                <span class="text-xs font-bold text-zinc-500 uppercase tracking-widest hidden sm:block">Admin Mode</span>
-                <button onclick="logout()" class="text-xs font-bold border border-red-500/50 text-red-500 px-4 py-2 rounded-lg hover:bg-red-500/10 transition-all cursor-pointer">
-                    SAIR
-                </button>
-            </div>
+        <header
+            class="w-full flex justify-between items-center px-10 py-6 border-b border-[#c5a059]/20 bg-black/40 backdrop-blur-md sticky top-0 z-40">
+            <h1 class="text-3xl font-black tracking-tighter text-[#c5a059] uppercase italic">IRON <span
+                    class="text-white">GYM</span></h1>
+            <button onclick="logout()"
+                class="text-xs font-bold border border-red-500/50 text-red-500 px-4 py-2 rounded-lg hover:bg-red-500/10 cursor-pointer">SAIR</button>
         </header>
 
         <main class="flex-1 p-8 max-w-7xl mx-auto w-full">
-            <div class="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+            <div class="flex justify-between items-center mb-10">
                 <h2 class="text-2xl font-bold uppercase tracking-widest">Gestão de Alunos</h2>
-                <button onclick="abrirModalCadastro()" class="gold-gradient text-black px-6 py-3 rounded-xl font-bold uppercase text-sm hover:scale-105 transition-all cursor-pointer shadow-lg shadow-gold/20">
-                    + Cadastrar Novo Aluno
+                <button onclick="abrirModalCadastro()"
+                    class="gold-gradient text-black px-6 py-3 rounded-xl font-bold uppercase text-sm cursor-pointer shadow-lg shadow-gold/20">
+                    + Novo Aluno
                 </button>
             </div>
 
-            <div class="glass-card rounded-2xl overflow-hidden shadow-2xl border border-zinc-800/50">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left">
-                        <thead class="bg-[#c5a059]/10 text-[#c5a059] text-xs uppercase tracking-widest">
-                            <tr>
-                                <th class="p-6">Nome Completo</th>
-                                <th class="p-6">CPF</th>
-                                <th class="p-6">Plano Atual</th>
-                                <th class="p-6 text-center">Gestão</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lista-usuarios" class="divide-y divide-zinc-800/50">
-                            <!-- Esta mensagem será substituída pelo JS -->
-                            <tr>
-                                <td colspan="4" class="p-5 text-center text-zinc-500">Carregando alunos...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+            <div class="glass-card rounded-2xl overflow-hidden">
+                <table class="w-full text-left">
+                    <thead class="bg-[#c5a059]/10 text-[#c5a059] text-xs uppercase tracking-widest">
+                        <tr>
+                            <th class="p-6">Nome</th>
+                            <th class="p-6">CPF</th>
+                            <th class="p-6">Status</th>
+                            <th class="p-6 text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-usuarios" class="divide-y divide-zinc-800/50">
+                        <tr>
+                            <td colspan="4" class="p-5 text-center text-zinc-500 italic">Carregando...</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </main>
     </section>
 
-    <!-- O 'hidden' abaixo deve permanecer para o estado inicial do modal -->
-    <div id="modal-aluno" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
-        <div class="glass-card w-full max-w-lg p-10 rounded-3xl shadow-2xl">
-            <div class="flex justify-between items-start mb-8">
-                <h3 id="modal-titulo" class="text-[#c5a059] text-2xl font-black uppercase italic tracking-tighter">Novo Cadastro</h3>
-                <button onclick="fecharModal()" class="text-zinc-500 hover:text-white transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </div>
-            
+    <!-- MODAL -->
+    <div id="modal-aluno" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+        <div class="glass-card w-full max-w-lg p-10 rounded-3xl">
+            <h3 id="modal-titulo" class="text-[#c5a059] text-2xl font-black uppercase italic mb-8">Novo Cadastro</h3>
             <form id="form-aluno-modal" class="space-y-5">
-                <div>
-                    <label for="nome-modal" class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2 font-bold">Nome do Aluno</label>
-                    <input type="text" id="nome-modal" required placeholder="Ex: Isabelly Ferreira" 
-                        class="w-full bg-black/60 border border-zinc-800 p-4 rounded-xl focus:border-[#c5a059] outline-none transition-all">
-                </div>
-                <div>
-                    <label for="cpf-modal" class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2 font-bold">Documento (CPF)</label>
-                    <input type="text" id="cpf-modal" required placeholder="000.000.000-00" maxlength="14"
-                        class="w-full bg-black/60 border border-zinc-800 p-4 rounded-xl font-mono focus:border-[#c5a059] outline-none transition-all">
-                </div>
-                <div>
-                    <label for="plano-modal" class="block text-[10px] uppercase tracking-widest text-zinc-500 mb-2 font-bold">Categoria do Plano</label>
-                    <select id="plano-modal" class="w-full bg-black/60 border border-zinc-800 p-4 rounded-xl text-zinc-300 focus:border-[#c5a059] outline-none appearance-none cursor-pointer">
-                        <option value="Mensal">Plano Mensal</option>
-                        <option value="Semestral">Plano Semestral</option>
-                        <option value="Anual (Black)">Plano Anual (Black)</option>
-                    </select>
-                </div>
-
+                <input type="text" id="nome-modal" placeholder="Nome do Aluno" required
+                    class="w-full bg-black/60 border border-zinc-800 p-4 rounded-xl outline-none focus:border-[#c5a059]">
+                <input type="text" id="cpf-modal" placeholder="CPF" maxlength="14" required
+                    class="w-full bg-black/60 border border-zinc-800 p-4 rounded-xl outline-none focus:border-[#c5a059]">
+                <select id="plano-modal"
+                    class="w-full bg-black/60 border border-zinc-800 p-4 rounded-xl outline-none focus:border-[#c5a059]">
+                    <option value="true">Ativo(a)</option>
+                    <option value="false">Inativo(a)</option>
+                </select>
                 <div class="flex gap-4 pt-4">
-                    <button type="button" onclick="fecharModal()" 
-                        class="flex-1 bg-zinc-900 border border-zinc-800 py-4 rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-zinc-800 transition-all">
-                        Cancelar
-                    </button>
-                    <button type="submit" 
-                        class="flex-1 gold-gradient text-black py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:opacity-90 transition-all">
-                        Confirmar
-                    </button>
+                    <button type="button" onclick="fecharModal()"
+                        class="flex-1 bg-zinc-900 py-4 rounded-xl font-bold uppercase text-xs cursor-pointer">Cancelar</button>
+                    <button type="submit"
+                        class="flex-1 gold-gradient text-black py-4 rounded-xl font-black uppercase text-xs cursor-pointer">Confirmar</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <script src="script.js"></script>
-    
-    <script>
-        // Máscara automática para CPF no modal
-        const cpfInput = document.getElementById('cpf-modal');
-        if (cpfInput) {
-            cpfInput.addEventListener('input', (e) => {
-                let value = e.target.value.replace(/\D/g, "");
-                if (value.length > 11) value = value.slice(0, 11);
-                
-                if (value.length <= 3) e.target.value = value;
-                else if (value.length <= 6) e.target.value = value.replace(/(\d{3})(\d+)/, "$1.$2");
-                else if (value.length <= 9) e.target.value = value.replace(/(\d{3})(\d{3})(\d+)/, "$1.$2.$3");
-                else e.target.value = value.replace(/(\d{3})(\d{3})(\d{3})(\d+)/, "$1.$2.$3-$4");
-            });
-        }
-    </script>
+    <!-- LINK PARA O SCRIPT SEPARADO -->
+    <script src="script.js" defer></script>
 </body>
+
 </html>
