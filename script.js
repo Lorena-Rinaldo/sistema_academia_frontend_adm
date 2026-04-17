@@ -12,6 +12,7 @@ const CONFIG = {
 const STATE = {
     activeStudentCpf: null,
     listaCompleta: [], // Novo: para manter referência ao filtrar
+    isSubmitting: false,
     isEditing: () => !!STATE.activeStudentCpf
 };
 
@@ -118,6 +119,8 @@ const studentService = {
     },
 
     async persist(studentData) {
+        if (STATE.isSubmitting) return;
+
         const rawCpf = formatters.stripNonDigits(studentData.cpf);
         const payload = { ...studentData, cpf: rawCpf };
         const isEditing = STATE.isEditing();
@@ -126,14 +129,22 @@ const studentService = {
         const method = isEditing ? 'PUT' : 'POST';
 
         try {
+            STATE.isSubmitting = true;
+            uiController.setSubmitButtonLoading(true);
+
             await apiService.request(path, { method, body: payload });
             uiController.closeModal();
             this.fetchAll();
-            
+
             // Mensagens solicitadas
             exibirMensagem(isEditing ? "Usuário atualizado com sucesso" : "Usuário cadastrado com sucesso");
-        } catch (err) {
+        }
+        catch (err) {
             alert(err.message);
+        }
+        finally {
+            STATE.isSubmitting = false;
+            uiController.setSubmitButtonLoading(false);
         }
     },
 
@@ -153,6 +164,24 @@ const studentService = {
 
 // --- CONTROLADOR DE INTERFACE ---
 const uiController = {
+    setSubmitButtonLoading(isLoading) {
+        const btn = DOM.studentForm.querySelector('button[type="submit"]');
+        if (!btn) return;
+
+        if (isLoading) {
+            btn.disabled = true;
+            btn.dataset.originalText = btn.innerText;
+            btn.innerText = "PROCESSANDO...";
+            btn.style.opacity = "0.5";
+            btn.style.cursor = "not-allowed";
+        } else {
+            btn.disabled = false;
+            btn.innerText = btn.dataset.originalText || "SALVAR";
+            btn.style.opacity = "1";
+            btn.style.cursor = "pointer";
+        }
+    },
+
     initDashboard() {
         DOM.loginSection.classList.add('hidden');
         DOM.adminSection.classList.remove('hidden');
@@ -241,7 +270,7 @@ DOM.studentForm.addEventListener('submit', (e) => {
 // Evento de Pesquisa Dinâmica
 DOM.inputBusca.addEventListener('input', (e) => {
     const termo = e.target.value.toLowerCase();
-    const filtrados = STATE.listaCompleta.filter(aluno => 
+    const filtrados = STATE.listaCompleta.filter(aluno =>
         aluno.nome.toLowerCase().startsWith(termo)
     );
     uiController.renderStudentTable(filtrados);
