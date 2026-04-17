@@ -1,6 +1,6 @@
 /**
  * IRON GYM - SISTEMA ADMINISTRATIVO
- * Versão: CPF Limpo no Banco / Mascarado na UI
+ * Versão: CPF Limpo no Banco / Mascarado na UI + Mensagens + Filtro
  */
 
 const CONFIG = {
@@ -10,7 +10,8 @@ const CONFIG = {
 };
 
 const STATE = {
-    activeStudentCpf: null, // Sempre armazenará o CPF sem pontos/traços
+    activeStudentCpf: null,
+    listaCompleta: [], // Novo: para manter referência ao filtrar
     isEditing: () => !!STATE.activeStudentCpf
 };
 
@@ -22,6 +23,8 @@ const DOM = {
     studentModal: document.getElementById('modal-aluno'),
     studentForm: document.getElementById('form-aluno-modal'),
     modalTitle: document.getElementById('modal-titulo'),
+    inputBusca: document.getElementById('input-busca'),
+    toastContainer: document.getElementById('toast-container'),
     inputs: {
         nome: document.getElementById('nome-modal'),
         cpf: document.getElementById('cpf-modal'),
@@ -31,17 +34,27 @@ const DOM = {
 
 // --- UTILITÁRIOS ---
 const formatters = {
-    // Transforma números em 000.000.000-00
     toCpfMask(value) {
         return value.replace(/\D/g, "")
             .replace(/(\d{3})(\d)/, "$1.$2")
             .replace(/(\d{3})(\d)/, "$1.$2")
             .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
     },
-    // Remove tudo que não for número (limpa para o banco)
     stripNonDigits(value) {
         return value.replace(/\D/g, "");
     }
+};
+
+// --- FUNÇÃO DE MENSAGENS (TOAST) ---
+const exibirMensagem = (texto) => {
+    const toast = document.createElement('div');
+    toast.className = "gold-gradient text-black px-6 py-4 rounded-xl font-bold uppercase text-xs shadow-2xl animate-toast";
+    toast.innerText = texto;
+    DOM.toastContainer.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 };
 
 // --- SERVIÇOS DE COMUNICAÇÃO ---
@@ -97,6 +110,7 @@ const studentService = {
         uiController.toggleLoader(true);
         try {
             const list = await apiService.request('/alunos');
+            STATE.listaCompleta = list; // Salva a lista original para o filtro
             uiController.renderStudentTable(list);
         } catch (err) {
             uiController.renderError();
@@ -104,18 +118,20 @@ const studentService = {
     },
 
     async persist(studentData) {
-        // Garantimos que o CPF no corpo da requisição está limpo
         const rawCpf = formatters.stripNonDigits(studentData.cpf);
         const payload = { ...studentData, cpf: rawCpf };
+        const isEditing = STATE.isEditing();
 
-        // A URL de edição também usa o CPF limpo definido no STATE
-        const path = STATE.isEditing() ? `/alunos/${STATE.activeStudentCpf}` : '/alunos';
-        const method = STATE.isEditing() ? 'PUT' : 'POST';
+        const path = isEditing ? `/alunos/${STATE.activeStudentCpf}` : '/alunos';
+        const method = isEditing ? 'PUT' : 'POST';
 
         try {
             await apiService.request(path, { method, body: payload });
             uiController.closeModal();
             this.fetchAll();
+            
+            // Mensagens solicitadas
+            exibirMensagem(isEditing ? "Usuário atualizado com sucesso" : "Usuário cadastrado com sucesso");
         } catch (err) {
             alert(err.message);
         }
@@ -128,6 +144,7 @@ const studentService = {
         try {
             await apiService.request(`/alunos/${rawCpf}`, { method: 'DELETE' });
             this.fetchAll();
+            exibirMensagem("Usuário excluído com sucesso"); // Mensagem solicitada
         } catch (err) {
             alert(err.message);
         }
@@ -151,7 +168,6 @@ const uiController = {
     },
 
     openModal(student = null) {
-        // STATE armazena o CPF limpo
         STATE.activeStudentCpf = student ? formatters.stripNonDigits(student.cpf) : null;
         DOM.studentForm.reset();
 
@@ -160,7 +176,6 @@ const uiController = {
 
         if (student) {
             DOM.inputs.nome.value = student.nome;
-            // No input, mostramos formatado
             DOM.inputs.cpf.value = formatters.toCpfMask(student.cpf);
             DOM.inputs.status.value = student.status.toString();
         }
@@ -173,12 +188,10 @@ const uiController = {
     },
 
     renderStudentTable(list) {
-        DOM.studentTable.innerHTML = list.length ? "" : '<tr><td colspan="4" class="p-5 text-center">Nenhum registro.</td></tr>';
+        DOM.studentTable.innerHTML = list.length ? "" : '<tr><td colspan="4" class="p-5 text-center text-zinc-500">Nenhum registro encontrado.</td></tr>';
 
         list.forEach(item => {
             const statusStyle = item.status ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500';
-
-            // Limpamos o CPF para passar como argumento nas funções
             const rawCpf = formatters.stripNonDigits(item.cpf);
 
             DOM.studentTable.innerHTML += `
@@ -223,6 +236,15 @@ DOM.studentForm.addEventListener('submit', (e) => {
         cpf: DOM.inputs.cpf.value.trim(),
         status: DOM.inputs.status.value === 'true'
     });
+});
+
+// Evento de Pesquisa Dinâmica
+DOM.inputBusca.addEventListener('input', (e) => {
+    const termo = e.target.value.toLowerCase();
+    const filtrados = STATE.listaCompleta.filter(aluno => 
+        aluno.nome.toLowerCase().startsWith(termo)
+    );
+    uiController.renderStudentTable(filtrados);
 });
 
 DOM.inputs.cpf.addEventListener('input', (e) => {

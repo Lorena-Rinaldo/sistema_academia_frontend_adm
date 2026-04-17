@@ -34,7 +34,6 @@
             transition: all 0.3s ease-in-out;
             opacity: 0;
             visibility: hidden;
-            /* Em vez de hidden do tailwind */
             pointer-events: none;
         }
 
@@ -52,12 +51,20 @@
         #modal-aluno.modal-active .glass-card {
             transform: scale(1);
         }
+
+        /* Animação para o Toast */
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-toast {
+            animation: slideIn 0.3s ease-out forwards;
+        }
     </style>
 </head>
 
 <body class="bg-[#0f0f10] text-[#e5e5e5] min-h-screen font-sans">
 
-    <!-- LOGIN -->
     <section id="login-section" class="min-h-screen flex items-center justify-center p-6">
         <div class="glass-card w-full max-w-md p-10 rounded-3xl shadow-2xl">
             <div class="text-center mb-8">
@@ -86,7 +93,6 @@
         </div>
     </section>
 
-    <!-- PAINEL ADMIN -->
     <section id="admin-panel" class="hidden min-h-screen flex flex-col">
         <header
             class="w-full flex justify-between items-center px-10 py-6 border-b border-[#c5a059]/20 bg-black/40 backdrop-blur-md sticky top-0 z-40">
@@ -97,8 +103,14 @@
         </header>
 
         <main class="flex-1 p-8 max-w-7xl mx-auto w-full">
-            <div class="flex justify-between items-center mb-10">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
                 <h2 class="text-2xl font-bold uppercase tracking-widest">Gestão de Alunos</h2>
+                
+                <div class="relative w-full max-w-md">
+                    <input type="text" id="input-busca" placeholder="Pesquisar por nome..." 
+                        class="w-full bg-black/40 border border-zinc-800 rounded-xl py-3 px-5 outline-none focus:border-[#c5a059] text-sm">
+                </div>
+
                 <button onclick="abrirModalCadastro()"
                     class="gold-gradient text-black px-6 py-3 rounded-xl font-bold uppercase text-sm cursor-pointer shadow-lg shadow-gold/20">
                     + Novo Aluno
@@ -125,7 +137,6 @@
         </main>
     </section>
 
-    <!-- MODAL -->
     <div id="modal-aluno" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
         <div class="glass-card w-full max-w-lg p-10 rounded-3xl">
             <h3 id="modal-titulo" class="text-[#c5a059] text-2xl font-black uppercase italic mb-8">Novo Cadastro</h3>
@@ -149,7 +160,8 @@
         </div>
     </div>
 
-    <!-- LINK PARA O SCRIPT SEPARADO -->
+    <div id="toast-container" class="fixed bottom-8 right-8 z-[100] flex flex-col gap-3"></div>
+
     <script src="script.js" defer></script>
 </body>
 
