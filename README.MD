@@ -96,11 +96,7 @@ O layout foi pensado para criar uma sensação premium e sofisticada, com:
 
 ## Melhorias futuras sugeridas
 
-- Adicionar validação de CPF no frontend.
-- Implementar paginação e pesquisa na lista de alunos.
-- Adicionar filtros por status e ordenação.
 - Criar um dashboard com métricas de alunos.
-- Separar estilos em arquivo `styles.css` para melhor manutenção.
 
 ## Autoras
 
