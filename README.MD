@@ -6,6 +6,8 @@ Este projeto é um painel administrativo de frontend para a academia **IRON GYM*
 
 O frontend consome uma API externa para autenticação e gerenciamento de alunos, mantendo o CPF formatado no UI e limpo ao enviar os dados para o backend.
 
+- Vercel: https://sistema-academia-frontend-adm.vercel.app/
+
 ## Funcionalidades principais
 
 - Autenticação segura via API com JWT.
@@ -107,4 +109,4 @@ O layout foi pensado para criar uma sensação premium e sofisticada, com:
 
 ## Licença
 
-Projeto desenvolvido para fins educacionais. A licença não foi especificada.
+Projeto desenvolvido para fins educacionais. 
